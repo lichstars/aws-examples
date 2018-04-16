@@ -1,0 +1,108 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Parameters": {
+    "RegistrationFormBucketName": {
+      "Type": "String",
+      "Description": "Bucket for capture of registration forms when external systems are down"
+    },
+    "RegistrationFormSQSQueueArn": {
+      "Description": "ARN of SQS queue for notifying registration processer of new registrations",
+      "Type": "String"
+    },
+    "RegistrationFormSQSQueueUrl": {
+      "Description": "URL of SQS queue for notifying registration processer of new registrations",
+      "Type": "String"
+    },
+    "LogBucketName": {
+      "Type": "String",
+      "Description": "Bucket (already created elsewhere) S3 access logs will be written to"
+    }
+  },
+  "Resources": {
+    "RegistrationFormS3Bucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": { "Ref": "RegistrationFormBucketName" },
+        "Tags": [
+          { "Key": "contact", "Value": "bananas" }
+        ],
+        "LoggingConfiguration": {
+          "DestinationBucketName": { "Ref": "LogBucketName" },
+          "LogFilePrefix": { "Fn::Join": ["", ["s3/", { "Ref": "RegistrationFormBucketName" }, "/"]] }
+        },
+        "NotificationConfiguration": {
+          "QueueConfigurations": [
+            {
+              "Queue": { "Ref": "RegistrationFormSQSQueueArn" },
+              "Event": "s3:ObjectCreated:*"
+            }
+          ]
+        }
+      }
+    },
+    "RegistrationFormS3BucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": { "Ref": "RegistrationFormBucketName" },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "DenyIncorrectEncryptionHeader",
+              "Action": ["s3:PutObject"],
+              "Effect": "Deny",
+              "Resource": [
+                { "Fn::Join": ["", ["arn:aws:s3:::", { "Ref": "RegistrationFormBucketName" }, "/*"]] }
+              ],
+              "Principal": "*",
+              "Condition": {
+                "StringNotEquals": {
+                  "s3:x-amz-server-side-encryption": "AES256"
+                }
+              }
+            },
+            {
+              "Sid": "DenyUnencryptedObjectUploads",
+              "Action": ["s3:PutObject"],
+              "Effect": "Deny",
+              "Resource": [
+                { "Fn::Join": ["", ["arn:aws:s3:::", { "Ref": "RegistrationFormBucketName" }, "/*"]] }
+              ],
+              "Principal": "*",
+              "Condition": {
+                "Null": {
+                  "s3:x-amz-server-side-encryption": "true"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "RegistrationFormSQSQueuePolicy": {
+      "Type": "AWS::SQS::QueuePolicy",
+      "DependsOn": "RegistrationFormS3Bucket",
+      "Properties": {
+        "Queues": [ { "Ref": "RegistrationFormSQSQueueUrl" } ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [ "sqs:SendMessage" ],
+              "Principal": {
+                "Service": "s3.amazonaws.com"
+              },
+              "Resource": { "Ref": "RegistrationFormSQSQueueArn" },
+              "Condition": {
+                "ArnLike": {
+                  "aws:SourceArn": { "Fn::Join": ["", ["arn:aws:s3:::", { "Ref": "RegistrationFormS3BucketName" }]] }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

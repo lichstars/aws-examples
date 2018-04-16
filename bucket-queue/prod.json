@@ -1,0 +1,18 @@
+[
+  {
+    "ParameterKey": "RegistrationFormBucketName",
+    "ParameterValue": "registration-prod"
+  },
+  {
+    "ParameterKey": "LogBucketName",
+    "ParameterValue": "logs-prod"
+  },
+  {
+    "ParameterKey": "RegistrationFormSQSQueueArn",
+    "ParameterValue": "arn:aws:sqs:ap-southeast-yyyyyy-RegistrationFormSQSQueue-yyyyyy"
+  },
+  {
+    "ParameterKey": "RegistrationFormSQSQueueUrl",
+    "ParameterValue": "https://sqs.ap-southeast-2.amazonaws.com/yyyyyy/registration-processor-RegistrationFormSQSQueue-yyyyyyx"
+  }
+]
